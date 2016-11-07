@@ -2,16 +2,19 @@
 Dependency management for tools.
 """
 
+import logging
 import os.path
 
-import logging
-log = logging.getLogger( __name__ )
+from collections import OrderedDict
+
+from galaxy.util import plugin_config
 
 from .resolvers import NullDependency
+from .resolvers.conda import CondaDependencyResolver, DEFAULT_ENSURE_CHANNELS
 from .resolvers.galaxy_packages import GalaxyPackageDependencyResolver
 from .resolvers.tool_shed_packages import ToolShedPackageDependencyResolver
-from .resolvers.conda import CondaDependencyResolver
-from galaxy.util import plugin_config
+
+log = logging.getLogger( __name__ )
 
 # TODO: Load these from the plugins. Would require a two step initialization of
 # DependencyManager - where the plugins are loaded first and then the config
@@ -20,7 +23,7 @@ EXTRA_CONFIG_KWDS = {
     'conda_prefix': None,
     'conda_exec': None,
     'conda_debug': None,
-    'conda_ensure_channels': 'conda-forge,r,bioconda,iuc',
+    'conda_ensure_channels': DEFAULT_ENSURE_CHANNELS,
     'conda_auto_install': False,
     'conda_auto_init': False,
     'conda_copy_dependencies': False,
@@ -88,22 +91,25 @@ class DependencyManager( object ):
         self.dependency_resolvers = self.__build_dependency_resolvers( conf_file )
 
     def dependency_shell_commands( self, requirements, **kwds ):
-        commands = []
+        requirement_to_dependency = self.requirements_to_dependencies(requirements, **kwds)
+        return [dependency.shell_commands(requirement) for requirement, dependency in requirement_to_dependency.items()]
+
+    def requirements_to_dependencies(self, requirements, **kwds):
+        """
+        Takes a list of requirements and returns a dictionary
+        with requirements as key and dependencies as value.
+        """
+        requirement_to_dependency = OrderedDict()
         for requirement in requirements:
-            log.debug( "Building dependency shell command for dependency '%s'", requirement.name )
-            dependency = NullDependency(version=requirement.version, name=requirement.name)
             if requirement.type in [ 'package', 'set_environment' ]:
                 dependency = self.find_dep( name=requirement.name,
                                             version=requirement.version,
                                             type=requirement.type,
                                             **kwds )
                 log.debug(dependency.resolver_msg)
-            dependency_commands = dependency.shell_commands( requirement )
-            if not dependency_commands:
-                log.warning( "Failed to resolve dependency on '%s', ignoring", requirement.name )
-            else:
-                commands.append( dependency_commands )
-        return commands
+                if dependency.dependency_type:
+                    requirement_to_dependency[requirement] = dependency
+        return requirement_to_dependency
 
     def uses_tool_shed_dependencies(self):
         return any( map( lambda r: isinstance( r, ToolShedPackageDependencyResolver ), self.dependency_resolvers ) )
