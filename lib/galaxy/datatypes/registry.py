@@ -18,6 +18,7 @@ from . import coverage
 from . import tracks
 from . import binary
 from . import text
+from . import isa
 import galaxy.util
 from galaxy.util.odict import odict
 from .display_applications.application import DisplayApplication

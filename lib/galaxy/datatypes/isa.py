@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 class Isa( data.Data ):
     def __init__(self, **kwd):
-        data.Data.__init__(**kwd)
+        data.Data.__init__(self, **kwd)
 
     def sniff( self, filename ):
         return os.path.isdir(filename) \
