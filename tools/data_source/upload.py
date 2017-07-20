@@ -408,8 +408,36 @@ def add_composite_file(dataset, registry, json_file, output_path, files_path):
                     else:
                         sniff.convert_newlines(dp, tmp_dir=tmpdir, tmp_prefix=tmp_prefix)
                 shutil.move(dp, os.path.join(files_path, name))
-    # Move the dataset to its "real" path
-    shutil.move(dataset.primary_file, output_path)
+
+    # try to instantiate the proper dataset object for the actual dataset type
+    if dataset.file_type is not None:
+        try:
+            datatype = registry.get_datatype_by_extension(dataset.file_type)
+        except Exception as e:
+            print("Unable to instantiate the datatype object for to the file type '%'" % dataset.file_type)
+
+    # Write the primary file to its final destination
+    if datatype is None:
+        # Move the dataset to its "real" path
+        shutil.move(dataset.primary_file, output_path)
+    else:
+        # Set the final output path of the dataset
+        # FIXME: change the signature of the `Data.write_from_stream` to directly use the target path (not a `Bunch` object)
+        dataset.file_name = output_path
+        dataset.files_path = files_path
+
+        # Write the dataset to its "real" path
+        # using the concrete implementation of the specific datatype instance
+        with open(dataset.primary_file, 'rb') as input_stream:
+            datatype.write_from_stream(dataset, input_stream)
+
+        # remove temporary files
+        if purge_source:
+            try:
+                os.remove(dataset.primary_file)
+            except:
+                pass
+
     # Write the job info
     info = dict(type='dataset',
                 dataset_id=dataset.dataset_id,
