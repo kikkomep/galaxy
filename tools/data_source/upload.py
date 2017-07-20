@@ -275,7 +275,7 @@ def add_file(dataset, registry, json_file, output_path):
                             return
                         elif Binary.is_ext_unsniffable(ext) and dataset.file_type != ext:
                             err_msg = "You must manually set the 'File Format' to '%s' when uploading %s files." % (
-                            ext.capitalize(), ext)
+                                ext.capitalize(), ext)
                             file_err(err_msg, dataset, json_file)
                             return
             if not data_type:
@@ -319,24 +319,47 @@ def add_file(dataset, registry, json_file, output_path):
                       '<b>Copy files into Galaxy</b> instead of <b>Link to files without copying into Galaxy</b> so grooming can be performed.'
             file_err(err_msg, dataset, json_file)
             return
-    if link_data_only == 'copy_files' and dataset.type in ('server_dir', 'path_paste') and data_type not in ['gzip',
-                                                                                                             'bz2',
-                                                                                                             'zip']:
-        # Move the dataset to its "real" path
-        if converted_path is not None:
-            shutil.copy(converted_path, output_path)
+
+    # TODO: remove all implementation
+    # if link_data_only == 'copy_files' and dataset.type in ('server_dir', 'path_paste') and data_type not in ['gzip',
+    #                                                                                                          'bz2',
+    #                                                                                                          'zip']:
+    #     # Move the dataset to its "real" path
+    #     if converted_path is not None:
+    #         shutil.copy(converted_path, output_path)
+    #         try:
+    #             os.remove(converted_path)
+    #         except:
+    #             pass
+    #     else:
+    #         # This should not happen, but it's here just in case
+    #         shutil.copy(dataset.path, output_path)
+    #
+    # elif link_data_only == 'copy_files':
+    #     if purge_source:
+    #         shutil.move(dataset.path, output_path)
+    #     else:
+    #         shutil.copy(dataset.path, output_path)
+
+    stdout = stdout or ""
+    if link_data_only == 'copy_files':
+        stdout += "Copying dataset using the new implementation"
+        # Set the final output path of the dataset
+        # FIXME: change the signature of the `Data.write_from_stream` to directly use the target path (not a `Bunch` object)
+        dataset.file_name = output_path
+
+        # use the concrete implementation of the specific datatype instance
+        input_file_path = converted_path or dataset.path
+        with open(input_file_path, 'rb') as input_stream:
+            datatype.write_from_stream(dataset, input_stream)
+
+        # remove temporary files
+        if purge_source:
             try:
                 os.remove(converted_path)
             except:
                 pass
-        else:
-            # This should not happen, but it's here just in case
-            shutil.copy(dataset.path, output_path)
-    elif link_data_only == 'copy_files':
-        if purge_source:
-            shutil.move(dataset.path, output_path)
-        else:
-            shutil.copy(dataset.path, output_path)
+
     # Write the job info
     stdout = stdout or 'uploaded %s file' % data_type
     info = dict(type='dataset',
