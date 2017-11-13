@@ -66,6 +66,10 @@ class Isa(data.Data):
     allow_datatype_change = False
     is_binary = True
 
+    # Add static metadata responsible for naming dataset instances
+    metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
+                             readonly=True, set_in_upload=True)
+
     # Included investigation classes {{{2
     ################################################################
     # XXX They are used to repace missing isatools library.
@@ -526,6 +530,7 @@ class Isa(data.Data):
     def set_meta(self, dataset, **kwd):
         """???What is the purpose of this method?"""
         super(Isa, self).set_meta(dataset, **kwd)
+        dataset.name = "PLUTO"
 
     # Display data {{{2
     ################################################################
